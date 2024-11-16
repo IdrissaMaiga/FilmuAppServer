@@ -1,0 +1,293 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  AGENT
+  USER
+}
+
+
+enum Type_ {
+  SERIE
+  MOVIE
+  LIVE
+}
+
+
+model User {
+  id                   String          @id @default(auto()) @map("_id") @db.ObjectId
+  name                 String?
+  email                String          @unique
+  role                 Role            @default(USER)
+  phone                String?
+  StreamingAccess      Json?
+  SocialMedias         Json?
+  profilePicture       String?
+  totalpaid            Float           @default(0)
+  balance              Float           @default(0)
+  password             String
+  isactive             Boolean         @default(false)
+  subscribtionEndDay   DateTime?
+  subscribtionStartDay DateTime?
+  isbanned             Boolean         @default(false)
+  creationdate         DateTime        @default(now())
+  resetCode            String?
+  isFinance            Boolean         @default(false)
+  codeExpiresAt        DateTime?
+  taste                Taste?
+  workingtime          String?
+  refferalCode         String?
+  refferedCode         String?
+  isLogined           Boolean  @default(false)
+  devices              Int             @default(0)
+  devicesInfo          Device[]
+  downloadnumber       Int             @default(0)
+  downloads            Downloads[]
+  watching             Json?
+  transactions         Transaction[]
+  subscriptionId       String?         @db.ObjectId
+  subscription         Subscription?   @relation(fields: [subscriptionId], references: [id])
+  imgcount            Int @default(0)
+  referralsMade        UserReferral[]  @relation("ReferralsMade")
+  referralsReceived    UserReferral[]  @relation("ReferralsReceived")
+}
+model Device {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String    @db.ObjectId
+  user         User      @relation(fields: [userId], references: [id])
+  token        String  @unique
+  deviceType   String?
+  browser      String?
+  os           String?
+  location     String?
+  ipAddress    String?                                                                                                                                                
+  loginTime DateTime  @default(now())
+  isActive     Boolean   @default(false)
+  isFlagged    Boolean   @default(false)
+}
+
+model UserReferral {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  referrerId  String   @db.ObjectId
+  referredId  String   @db.ObjectId
+  startDay    DateTime
+  endDay      DateTime
+  isEmpted    Boolean @default(false)
+  type                  SubscriptionType?      
+  subscription         Subscription?   @relation(fields: [type], references: [type])
+  referrer    User     @relation("ReferralsMade", fields: [referrerId], references: [id])
+  referred    User     @relation("ReferralsReceived", fields: [referredId], references: [id])
+}
+
+
+model verifyUser{
+  id String  @id @default(auto()) @map("_id") @db.ObjectId
+  phonenumeber   String?
+  email          String @unique
+  isApproved     Boolean?
+  verificationCode     String?
+  codeExpiresAt        DateTime?
+}
+enum TypeFlow {
+  RECEIVED
+  SENT
+}
+enum TypeMoney{
+  OrangeMoney
+  MoovMoney
+}
+
+model Moneyflow{
+  id String  @id @default(auto()) @map("_id") @db.ObjectId
+  amount         Float @default(0)
+  details        String[] 
+  phonenumeber   String?
+  isApproved     Boolean @default(true)
+  ID             String
+  type           TypeFlow
+  mean           TypeMoney?
+}
+enum TypetransferData {
+  TransferSent
+  TransferReceived
+}
+
+// Finance 
+model transferData{
+  id String  @id @default(auto()) @map("_id") @db.ObjectId
+  type TypetransferData 
+  amount Int @default(0)
+  phone  String?
+  Id     String?
+  fee    Int @default(0)
+  balance Int @default(0)
+  mean           TypeMoney?
+}
+
+model Downloads {
+  id              String       @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String       @db.ObjectId
+  user            User         @relation(fields: [userId], references: [id])
+  Serie         Series?     @relation(fields: [SerieId], references: [id])
+  movie           Movie?       @relation(fields: [movieId], references: [id])
+  fulfilledDate   DateTime?
+  expirationDate  DateTime?
+  isExpired       Boolean  @default(true)
+  isCanceled      Boolean  @default(true)
+  SerieId       String?      @db.ObjectId
+  movieId         String?      @db.ObjectId
+  transactionId   String?      @db.ObjectId
+  transaction     Transaction? @relation(fields: [transactionId, userId], references: [id, userId])
+
+  @@unique([transactionId, userId]) // Ensures a unique one-to-one relation
+  
+}
+enum TypeTransaction {
+  DEPO
+  RETRAIT
+  ABON
+  TELE
+  
+}
+model Transaction {
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String         @db.ObjectId//obligatory
+  user            User           @relation(fields: [userId], references: [id])
+  amount          Float          @default(0)  //obligatory
+  details         String[]
+  phonenumber     String     //obligatory
+  isApproved      Boolean        @default(false)
+  isPending       Boolean        @default(true)
+  isRetrait       Boolean        @default(false)
+  isCanceled       Boolean        @default(false)
+  onlyAdminSee     Boolean        @default(true)
+  ID              String ? //obligatory
+  transactionType TypeTransaction
+  download        Downloads?
+  subscriptionId   String  ?     @db.ObjectId
+  subscription    Subscription? @relation(fields: [subscriptionId], references: [id])
+  lastModified    DateTime       @updatedAt
+   reversed     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  unit Int  @default (0)
+  mean           TypeMoney?
+  @@unique([id, userId]) // Compound unique constraint
+ 
+}
+
+enum SubscriptionType {
+  BASIC      // For a single user with basic streaming needs
+  FAMILY     // For small families with more devices and downloads
+  PREMIUM    // For more intensive family usage with additional downloads
+  UNLIMITED
+  VINGT4HEURE  // For unlimited downloads and maximum devices
+}
+
+model Subscription {
+  id            String           @id @default(auto()) @map("_id") @db.ObjectId
+  users           User[]    
+  referrals       UserReferral[]        
+  transactions    Transaction[] 
+  price         Int              // Subscription price in currency units (e.g., cents)
+  devices       Int              // Number of devices allowed
+  downloads     Int           // Download limit (e.g., "1", "6", "8", "unlimited")
+  description   String           // Description of the subscription plan
+  icon          String?          // Optional icon name or ID for UI (e.g., "FaStar", "FaMedal")
+  badge         String?          // Optional badge label (e.g., "Most Popular", "Best Value")
+  type          SubscriptionType @unique
+  duration Int  @default (30)// Enum for the type of subscription plan
+  usercount  Int?
+
+}
+
+
+
+
+
+
+
+model Taste {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  name         String    @default("mylist")
+  userId       String    @unique @db.ObjectId
+  user         User      @relation(fields: [userId], references: [id])
+  creationdate DateTime  @default(now())
+  lastupdate   DateTime  @updatedAt
+  SerieIds     String[]  @db.ObjectId
+  Series       Series[]  @relation(fields: [SerieIds], references: [id])
+  MovieIds     String[]  @db.ObjectId
+  Movies       Movie[]   @relation(fields: [MovieIds], references: [id])
+}
+
+
+
+model Series {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  creationdate  DateTime @default(now())
+  name          String
+  downloadPrice Float    @default(400)
+  type_         Type_    @default(SERIE)
+  seenby        Int      @default(0) // number of users who have seen the service
+  imagePath     String
+  genre         String?
+  tmdb          String?
+  serieId       String?
+  rating        Float?
+  published     DateTime @default(now())
+  Downloads     Downloads[]
+  Tastes        Taste[]  @relation(fields: [tasteIds], references: [id])
+  tasteIds      String[] @db.ObjectId
+}
+
+              
+model Movie {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  creationdate  DateTime    @default(now())
+  name          String
+  indexer       String    
+  imagePath     String
+  isAdult       Boolean @default(false)     
+  extension     String
+  tmdb          String?
+  added         DateTime?
+  rating        Float ?@default(1)
+  downloadPrice Float       @default(400)
+  type_         Type_       @default(MOVIE)
+  seenby        Int         @default(0) // number of users who have seen the service
+  Tastes        Taste[]     @relation(fields: [tasteIds], references: [id])
+  tasteIds      String[]    @db.ObjectId
+  Downloads     Downloads[]
+}
+
+model Channel {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  creationdate DateTime @default(now())
+  name         String
+  logos        String[]
+  ports        port[]   @relation("ChannelPorts") // Adding a relation name to avoid ambiguity
+  total        Int?     // New field for 'total'
+  category     String?  // New field for 'category'
+}
+
+model port {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  region       String?
+  name         String
+  resolution   String?
+  utc          String?
+  indexer      String
+  language     String?
+  ok  Boolean
+  creationdate DateTime @default(now())
+  channelId    String?  @db.ObjectId
+  Channel      Channel? @relation(fields: [channelId], references: [id], name: "ChannelPorts") // Added relation name
+}
+
+
