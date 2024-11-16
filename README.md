@@ -1,0 +1,2 @@
+# myserver
+my domain
