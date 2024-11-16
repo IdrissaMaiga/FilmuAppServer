@@ -26,7 +26,7 @@ const authenticateToken = async (req, res, next) => {
     });
     if (!tosee){
      // res.clearCookie('accessToken');
-      console.log("token",token);
+    //  console.log("token",token);
       return res.status(400).json({exit:true, message: 'Vous avez été exclu' });
     }
     const todelete= await prismaclient.device.findUnique({
@@ -63,7 +63,7 @@ const authenticateToken = async (req, res, next) => {
         isbanned: true,
         imgcount:true
       } }); // Correctly use findUnique
-     console.log(jwt.verify(token, secretKey));
+     //console.log(jwt.verify(token, secretKey));
 
     if (!user) {
      console.log("User not found");
