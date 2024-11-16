@@ -24,10 +24,8 @@ app.use(bodyParser.json({ limit: '50mb' })) // Adjust '50mb' to the desired size
 
 app.use(express.json())
 
-const corsOptions = {
-  origin: '*',  // Allow all origins (use with caution in production)
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allow the necessary methods
-  allowedHeaders: ['Content-Type', 'Authorization'], // Allow these headers
+const corssetting = {
+  origin: '*',  // Allow all origins (use with caution in production
   //credentials: true, // Optional: Allows cookies to be sent
 };
 
