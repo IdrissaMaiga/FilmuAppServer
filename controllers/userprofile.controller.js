@@ -173,7 +173,7 @@ export const verifyEmailCode = async (req, res) => {
     if (!UserToCreate) {
       return res.status(404).json({ message: 'We did find you' });
     }
-   
+    console.log(UserToCreate.verificationCode,code)
     if (UserToCreate.verificationCode !== code) {
       return res.status(400).json({ message: 'Invalid verification code' });
     }
