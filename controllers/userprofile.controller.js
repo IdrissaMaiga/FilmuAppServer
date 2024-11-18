@@ -330,7 +330,7 @@ export const updatePassword = async (req, res) => {
   }
 
   const { email, newPassword, code } = req.body;
-
+  
   try {
     const user = await prismaclient.user.findUnique({ where: { email } });
 
@@ -338,7 +338,7 @@ export const updatePassword = async (req, res) => {
     if (!user || !user.resetCode || !user.codeExpiresAt) {
       return res.status(400).json({ message: 'Invalid request or expired code' });
     }
-
+    console.log(user.resetCode,code)
     // Validate the code
     if (user.resetCode !== code) {
       return res.status(400).json({ message: 'Invalid verification code' });
