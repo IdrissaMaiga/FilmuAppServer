@@ -102,7 +102,8 @@ async function registerDevice(userInfo, deviceInfo, token) {
     orderBy: {
       loginTime: 'asc' // Oldest login time first
     }
-  });
+  }) ||[];
+  
  
     // Step 4: Calculate number of devices to delete
     
