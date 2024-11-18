@@ -200,6 +200,7 @@ export const verifyEmailCode = async (req, res) => {
         email,
         phone:phoneNumber,
         password: hashedPassword 
+        devices: 1
       }
     })
     await prismaclient.user.update({
