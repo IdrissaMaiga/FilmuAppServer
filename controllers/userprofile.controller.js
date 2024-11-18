@@ -199,7 +199,7 @@ export const verifyEmailCode = async (req, res) => {
       data:{
         email,
         phone:phoneNumber,
-        password: hashedPassword 
+        password: hashedPassword,
         devices: 1
       }
     })
