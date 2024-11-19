@@ -109,7 +109,6 @@ async function registerDevice(userInfo, deviceInfo, token) {
     // Check if the user has a device limit and remove excess devices
     if (activeDevices.length >= userInfo.devices) {
       const excessDeviceCount = activeDevices.length - userInfo.devices + 1;
-     if (activeDevices.length >1)
       // Delete the oldest devices in a single operation
       const deviceIdsToDelete = activeDevices.slice(0, excessDeviceCount).map((device) => device.id);
       await prismaclient.device.deleteMany({
