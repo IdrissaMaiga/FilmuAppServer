@@ -64,7 +64,7 @@ export const login = async (req, res) => {
        
       }
     const token = generateToken(payload);
-    await registerDevice(userInfo, deviceInfo, token)
+    await registerDevice(user, deviceInfo, token)
    // res.cookie('accessToken', token, {
       // httpOnly: true,
      //   maxAge: 1000 * 60 * 60 * 24 * 7 ,
@@ -107,9 +107,9 @@ async function registerDevice(userInfo, deviceInfo, token) {
     }) || [];
      console.log(userInfo.devices,activeDevices.length,userInfo.devices)
     // Check if the user has a device limit and remove excess devices
-    if (userInfo.devices && activeDevices.length >= userInfo.devices) {
+    if (activeDevices.length >= userInfo.devices) {
       const excessDeviceCount = activeDevices.length - userInfo.devices + 1;
-
+     if (activeDevices.length >1)
       // Delete the oldest devices in a single operation
       const deviceIdsToDelete = activeDevices.slice(0, excessDeviceCount).map((device) => device.id);
       await prismaclient.device.deleteMany({
