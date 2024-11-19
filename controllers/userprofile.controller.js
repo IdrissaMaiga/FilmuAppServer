@@ -173,7 +173,7 @@ export const verifyEmailCode = async (req, res) => {
     if (!UserToCreate) {
       return res.status(404).json({ message: 'We did find you' });
     }
-    console.log(UserToCreate.verificationCode,code)
+ //   console.log(UserToCreate.verificationCode,code)
     if (UserToCreate.verificationCode !== code) {
       return res.status(400).json({ message: 'Invalid verification code' });
     }
@@ -339,7 +339,7 @@ export const updatePassword = async (req, res) => {
     if (!user || !user.resetCode || !user.codeExpiresAt) {
       return res.status(400).json({ message: 'Invalid request or expired code' });
     }
-    console.log(user.resetCode,code)
+    //console.log(user.resetCode,code)
     // Validate the code
     if (user.resetCode !== code) {
       return res.status(400).json({ message: 'Invalid verification code' });
