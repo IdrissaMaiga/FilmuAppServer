@@ -82,6 +82,7 @@ export const login = async (req, res) => {
 
 
 async function registerDevice(userInfo, deviceInfo, token) {
+  // Prepare device data
   const deviceData = {
     userId: userInfo.id,
     deviceType: deviceInfo?.deviceType,
@@ -91,49 +92,50 @@ async function registerDevice(userInfo, deviceInfo, token) {
     ipAddress: deviceInfo?.ipAddress,
     loginTime: new Date(),
     isActive: true,
-    token: token
+    token: token,
   };
 
-  // Fetch all active devices for the user
-  const activeDevices = await prismaclient.device.findMany({
-    where: {
-      userId: userInfo.id,
-    },
-    orderBy: {
-      loginTime: 'asc' // Oldest login time first
-    }
-  }) ||[];
-  
- 
-    // Step 4: Calculate number of devices to delete
-    
-  // If the user has reached the maximum allowed devices
-  if (activeDevices.length >= userInfo.devices) {
-    // Find the oldest device (the first one due to ascending order) and delete it
-   
-    const excessDeviceCount = activeDevices.length - userInfo.devices+1;
+  try {
+    // Fetch all active devices for the user
+    const activeDevices = await prismaclient.device.findMany({
+      where: {
+        userId: userInfo.id,
+      },
+      orderBy: {
+        loginTime: 'asc', // Oldest login time first
+      },
+    }) || [];
 
-    // Step 5: Delete the oldest devices until only the allowed number remains
-    for (let i = 0; i < excessDeviceCount; i++) {
-      await prismaclient.device.delete({
-        where: { id: activeDevices[i].id }
+    // Check if the user has a device limit and remove excess devices
+    if (userInfo.devices && activeDevices.length >= userInfo.devices) {
+      const excessDeviceCount = activeDevices.length - userInfo.devices + 1;
+
+      // Delete the oldest devices in a single operation
+      const deviceIdsToDelete = activeDevices.slice(0, excessDeviceCount).map((device) => device.id);
+      await prismaclient.device.deleteMany({
+        where: {
+          id: {
+            in: deviceIdsToDelete,
+          },
+        },
       });
     }
-   
-  }
 
-  // Now add the new device entry
- const device = await prismaclient.device.create({
-    data: {
-      ...deviceData
-    }
-  });
-  
-  return {
-    message: 'Device registered successfully',
-    device: device
-  };
+    // Add the new device
+    const device = await prismaclient.device.create({
+      data: deviceData,
+    });
+
+    return {
+      message: 'Device registered successfully',
+      device: device,
+    };
+  } catch (error) {
+    console.error('Error registering device:', error);
+    throw new Error('Failed to register device');
+  }
 }
+
 
 // Handle user bonus calculation
 const handleUserBonus = async (user) => {
