@@ -105,7 +105,7 @@ async function registerDevice(userInfo, deviceInfo, token) {
         loginTime: 'asc', // Oldest login time first
       },
     }) || [];
-
+     console.log(userInfo.devices,activeDevices.length,userInfo.devices)
     // Check if the user has a device limit and remove excess devices
     if (userInfo.devices && activeDevices.length >= userInfo.devices) {
       const excessDeviceCount = activeDevices.length - userInfo.devices + 1;
