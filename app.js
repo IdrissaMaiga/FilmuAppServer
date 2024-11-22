@@ -2,7 +2,6 @@ import express from 'express'
 import cors from 'cors'
 import env from 'dotenv'
 env.config()
-import cookieParser from 'cookie-parser'
 import authRoute from './routes/auth.route.js'
 import profileRoute from './routes/userprofile.route.js'
 import tasteRoute from './routes/taste.route.js'

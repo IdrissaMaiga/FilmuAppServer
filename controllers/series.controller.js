@@ -1,5 +1,5 @@
 import prismaclient from '../lib/prisma.js'
-import updateAField from '../functions/fieldUpdate.js'
+
 
 // Create a new series
 export const createSeries = async (req, res) => {
@@ -37,13 +37,20 @@ export const getSeries = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 10;
     const isRandom = req.query.random === 'true';
+    const genreFilter = req.query.genre || ""; // Genre to filter by
+   // console.log(genreFilter);
+
+    // Use Prisma's `has` for filtering array fields
+    const genreCondition = genreFilter
+      ? { genres: { has: genreFilter } }
+      : {};
 
     if (isRandom) {
-      // Random mode: Fetch a random selection of series
+      // Random mode: Fetch random series
       const series = await prismaclient.series.aggregateRaw({
         pipeline: [
-          { $match: { tmdb: { $ne: null } } },
-          { $sample: { size: pageSize * 2 } }, // Sample a larger pool to account for possible duplicates
+          { $match: { tmdb: { $ne: null }, ...genreCondition } },
+          { $sample: { size: pageSize * 2 } }, // Sample a larger pool to handle duplicates
         ],
       });
 
@@ -51,46 +58,39 @@ export const getSeries = async (req, res) => {
       const seenTmdbIds = new Set();
       const seenImagePaths = new Set();
 
-      // Filter the series to avoid duplicates based on `tmdb` and `imagePath`
       for (const serie of series) {
         const { tmdb, imagePath } = serie;
 
-        // Check for uniqueness based on `tmdb` and `imagePath`
-        const isTmdbDuplicate = tmdb && seenTmdbIds.has(tmdb);
-        const isImagePathDuplicate = imagePath && seenImagePaths.has(imagePath);
-
-        if (!isTmdbDuplicate && !isImagePathDuplicate) {
+        // Check for uniqueness based on tmdb and imagePath
+        if (tmdb && imagePath && !seenTmdbIds.has(tmdb) && !seenImagePaths.has(imagePath)) {
           uniqueSeries.push(serie);
-
-          // Track seen `tmdb` and `imagePath` values
-          if (tmdb) seenTmdbIds.add(tmdb);
-          if (imagePath) seenImagePaths.add(imagePath);
+          seenTmdbIds.add(tmdb);
+          seenImagePaths.add(imagePath);
         }
 
-        // Stop once we reach the desired pageSize
+        // Stop once we have the desired pageSize
         if (uniqueSeries.length === pageSize) break;
       }
 
-      // Send the filtered unique series in random mode
       res.status(200).json({
         series: uniqueSeries,
         pageSize,
         totalSeries: uniqueSeries.length,
       });
-
     } else {
       // Normal pagination mode
       const skip = (page - 1) * pageSize;
-
-      // Fetch the series and ensure no duplicates in the results
       const series = await prismaclient.series.findMany({
         skip,
         take: pageSize,
-        where: { tmdb: { not: null } },
-        orderBy: { tmdb: "desc" },
+        where: {
+          tmdb: { not: null },
+          ...genreCondition, // Use Prisma's has operator
+        },
+        orderBy: { published: 'desc' },
       });
 
-      // Filter out duplicates based on `tmdb` and `imagePath`
+      // Ensure no duplicates in normal pagination
       const uniqueSeries = [];
       const seenTmdbIds = new Set();
       const seenImagePaths = new Set();
@@ -98,25 +98,22 @@ export const getSeries = async (req, res) => {
       for (const serie of series) {
         const { tmdb, imagePath } = serie;
 
-        // Check for uniqueness based on `tmdb` and `imagePath`
-        const isTmdbDuplicate = tmdb && seenTmdbIds.has(tmdb);
-        const isImagePathDuplicate = imagePath && seenImagePaths.has(imagePath);
-
-        if (!isTmdbDuplicate && !isImagePathDuplicate) {
+        // Check for uniqueness based on tmdb and imagePath
+        if (tmdb && imagePath && !seenTmdbIds.has(tmdb) && !seenImagePaths.has(imagePath)) {
           uniqueSeries.push(serie);
-
-          // Track seen `tmdb` and `imagePath` values
-          if (tmdb) seenTmdbIds.add(tmdb);
-          if (imagePath) seenImagePaths.add(imagePath);
+          seenTmdbIds.add(tmdb);
+          seenImagePaths.add(imagePath);
         }
       }
 
-      // Fetch the total number of unique series
+      // Fetch the total number of series with non-null tmdb
       const totalSeries = await prismaclient.series.count({
-        where: { tmdb: { not: null } },
+        where: {
+          tmdb: { not: null },
+          ...genreCondition,
+        },
       });
 
-      // Return the unique series in normal pagination mode
       res.status(200).json({
         series: uniqueSeries,
         page,
@@ -129,6 +126,7 @@ export const getSeries = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch series' });
   }
 };
+
 
 
 export const getSeriesByTmdb = async (req, res) => {
@@ -175,6 +173,7 @@ export const getMoviesAndSeries = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 24;
     const searchQuery = req.query.search || ''; // Search term
+    const genresQuery = req.query.genres ? req.query.genres.split(',') : []; // Parse genres query if available
     const isRandom = req.query.random === 'true'; // Random flag
     const type = req.query.type || 'all'; // Type could be 'movie', 'series', or 'all'
 
@@ -184,8 +183,15 @@ export const getMoviesAndSeries = async (req, res) => {
     let totalMovies = 0;
     let totalSeries = 0;
 
-    // Search query condition for movies and series
-    const searchCondition = { name: { contains: searchQuery, mode: 'insensitive' } }
+    // Build search condition based on searchQuery and genresQuery
+    const searchCondition = {
+      AND: [
+        { name: { contains: searchQuery, mode: 'insensitive' } },
+        ...(genresQuery.length > 0
+          ? [{ genres: { hasSome: genresQuery, mode: 'insensitive' } }] // Search for genres if specified
+          : []),
+      ],
+    };
 
     // Function to filter out duplicates based on tmdb and imagePath
     const filterDuplicates = (items) => {
@@ -209,7 +215,7 @@ export const getMoviesAndSeries = async (req, res) => {
       });
     };
 
-    // Fetch and filter movies based on search query
+    // Fetch and filter movies based on search query and genres
     if (type === 'movie' || type === 'all') {
       const moviesQuery = {
         where: searchCondition,
@@ -225,7 +231,7 @@ export const getMoviesAndSeries = async (req, res) => {
       results.movies = filterDuplicates(results.movies);
     }
 
-    // Fetch and filter series based on search query
+    // Fetch and filter series based on search query and genres
     if (type === 'series' || type === 'all') {
       const seriesQuery = {
         where: searchCondition,
@@ -264,6 +270,7 @@ export const getMoviesAndSeries = async (req, res) => {
   }
 };
 
+
 // Backend: Route handler for fetching movies and series by IDs
 export const getMovieandseriesByIds = async (req, res) => {
   try {
@@ -285,212 +292,3 @@ export const getMovieandseriesByIds = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch movies and series' });
   }
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// the series of the user taste
-export const getSeriesofmylist = async (req, res) => {
-  try {
-    // Fetch all series for admin, only basic details for normal users
-    series = await prismaclient.series.findMany({
-      where: {
-        tasteIds: { contains: req.user.taste.id } // Fetch only series that belong to the user's taste
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        downloadPrice: true,
-        type_: true,
-        season: {
-          select: {
-            id: true,
-            number: true,
-            episodes: {
-              select: {
-                id: true,
-                name: true,
-                downloadPrice: true,
-                paymentStatus: true,
-                seenby: true,
-                Downloads: {
-                  where: {
-                    OR: [
-                      { adminconfirm: true, userId: req.user.id }, // Allow confirmed downloads by admin
-                      {
-                        userId: req.user.id, // Allow downloads by the logged-in user
-                        clientconfirm: true
-                      }
-                    ]
-                  }
-                },
-                Watching: {
-                  where: {
-                    userId: req.user.id // Allow downloads by the logged-in user
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    })
-
-    res.status(200).json(series)
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Failed to fetch series' })
-  }
-}
-// Get a series by ID
-export const getSeriesById = async (req, res) => {
-  try {
-    const { id } = req.params
-    // Fetch the series by ID including episodes
-    let serie
-    if (req.isAdmin) {
-      serie = await prismaclient.series.findUnique({
-        where: { id },
-        include: {
-          season: {
-            include: {
-              episodes: {
-                include: {
-                  Downloads: true,
-                  Watching: true
-                }
-              }
-            }
-          },
-          Tastes: true
-        }
-      })
-    } else {
-      serie = await prismaclient.series.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          downloadPrice: true,
-          type_: true,
-          season: {
-            select: {
-              id: true,
-              number: true,
-              episodes: {
-                select: {
-                  id: true,
-                  name: true,
-                  downloadPrice: true,
-                  paymentStatus: true,
-                  seenby: true,
-                  Downloads: {
-                    where: {
-                      OR: [
-                        { adminconfirm: true, userId: req.user.id }, // Allow confirmed downloads by admin
-                        {
-                          userId: req.user.id, // Allow downloads by the logged-in user
-                          clientconfirm: true
-                        }
-                      ]
-                    }
-                  },
-                  Watching: {
-                    where: {
-                      userId: req.user.id // Allow downloads by the logged-in user
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      })
-    }
-
-    if (!serie) {
-      return res.status(404).json({ message: 'Series not found' })
-    }
-
-    // Restrict access for normal users
-
-    res.status(200).json(series)
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Failed to fetch series' })
-  }
-}
-
-// Update a series by ID
-export const updateSeries = async (req, res) => {
-  try {
-    const { id } = req.params
-    const { fieldName, fieldValue } = req.body
-
-    // Only allow admin to update series
-    if (!req.isAdmin) {
-      return res.status(403).json({ message: 'Only admin can update a series' })
-    }
-
-    const updatedSeries = await updateAField(
-      'series',
-      { id },
-      fieldName,
-      fieldValue
-    )
-
-    res.status(200).json({
-      message: 'Series updated successfully',
-      series: updatedSeries
-    })
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ message: 'Failed to update series' })
-  }
-}

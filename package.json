@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "npx nodemon app.js",
-    "deploy":"node app.js"
+    "deploy": "node app.js"
   },
   "keywords": [],
   "author": "",
@@ -16,7 +16,6 @@
     "axios": "^1.7.3",
     "bcrypt": "^5.1.1",
     "cookie": "^1.0.1",
-    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "crypto-js": "^4.2.0",

@@ -51,12 +51,18 @@ export const getMovies = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 10;
     const isRandom = req.query.random === 'true';
+    const genreFilter = req.query.genre || ""; // Genre to filter by
+   // console.log(genreFilter)
+    // Use Prisma's `has` for filtering array fields
+    const genreCondition = genreFilter
+      ? { genres: { has: genreFilter} }
+      : {};
 
     if (isRandom) {
       // Random mode: Fetch random movies
       const movies = await prismaclient.movie.aggregateRaw({
         pipeline: [
-          { $match: { tmdb: { $ne: null } } },
+          { $match: { tmdb: { $ne: null }, ...genreCondition } },
           { $sample: { size: pageSize * 2 } }, // Sample a larger pool to handle duplicates
         ],
       });
@@ -90,7 +96,10 @@ export const getMovies = async (req, res) => {
       const movies = await prismaclient.movie.findMany({
         skip,
         take: pageSize,
-        where: { tmdb: { not: null } },
+        where: {
+          tmdb: { not: null },
+          ...genreCondition, // Use Prisma's has operator
+        },
         orderBy: { added: 'desc' },
       });
 
@@ -112,7 +121,10 @@ export const getMovies = async (req, res) => {
 
       // Fetch the total number of movies with non-null tmdb
       const totalMovies = await prismaclient.movie.count({
-        where: { tmdb: { not: null } },
+        where: {
+          tmdb: { not: null },
+          ...genreCondition,
+        },
       });
 
       res.status(200).json({
@@ -127,6 +139,8 @@ export const getMovies = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch movies' });
   }
 };
+
+
 
 
 

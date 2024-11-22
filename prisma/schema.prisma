@@ -236,10 +236,10 @@ model Series {
   type_         Type_    @default(SERIE)
   seenby        Int      @default(0) // number of users who have seen the service
   imagePath     String
-  genre         String?
   tmdb          String?
   serieId       String?
   rating        Float?
+  genres        String[]
   published     DateTime @default(now())
   Downloads     Downloads[]
   Tastes        Taste[]  @relation(fields: [tasteIds], references: [id])
@@ -257,6 +257,7 @@ model Movie {
   extension     String
   tmdb          String?
   added         DateTime?
+  genres        String[]
   rating        Float ?@default(1)
   downloadPrice Float       @default(400)
   type_         Type_       @default(MOVIE)
