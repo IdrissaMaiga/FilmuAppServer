@@ -8,7 +8,7 @@ dotenv.config();
 
 export const login = async (req, res) => {
   const { email, password,deviceInfo } = req.body;
- // console.log("user in")
+// console.log("user in")
   try {
     const user = await prismaclient.user.findUnique({
       where: { email },
@@ -72,6 +72,10 @@ export const login = async (req, res) => {
      // secure: true
     // });
     userInfo.accessToken=token;
+const updatedUser = await prismaclient.user.update({
+      where: { email },
+      data: { isLogined: true,token }, // Set isLogined to true
+    });
     res.status(200).json(userInfo);
     
   } catch (err) {
@@ -220,17 +224,26 @@ const generateToken = (userInfo) => {
 
 // Logout Route
 export const logout = async (req, res) => {
-  const token = req.cookies.accessToken; // Retrieve token from cookies
-  prismaclient.device.delete({
-    where: {
-      token: token,
-    }
-  });
+ const token= req.headers['authorization']?.split(' ')[1]
   prismaclient.device.delete({
     where: {
       isFlagged: true,
     }
   });
+  if(token){
+  prismaclient.device.delete({
+    where: {
+      token: token,
+   
+ }
+  });
+ const updatedUsers = await prismaclient.user.updateMany({
+  where: { token },
+  data: { isLogined: false,token:null }, // Set isLogined to false for all users with the same token
+});
+}
+  else {res.status(401).json({ message: 'Unable to logout automatically ' });}  
+
   res.clearCookie('accessToken');
   res.status(200).json({ message: 'Logout successful' });
 };

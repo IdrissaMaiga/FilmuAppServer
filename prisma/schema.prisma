@@ -41,9 +41,11 @@ model User {
   resetCode            String?
   isFinance            Boolean         @default(false)
   codeExpiresAt        DateTime?
+  updatedAt   DateTime @updatedAt
   taste                Taste?
   workingtime          String?
   refferalCode         String?
+  token         String?
   refferedCode         String?
   isLogined           Boolean  @default(false)
   devices              Int             @default(0)
